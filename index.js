@@ -1,26 +1,37 @@
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
+// ES modules syntax — required for modern Cloudflare Workers runtime
+export default {
+  async fetch(request, env, ctx) {
+    const TARGET_DOMAIN = 'visora-api.bptecnologia.com'
 
-async function handleRequest(request) {
-  const newUrl = new URL(request.url)
-  // Change the hostname to the new domain
-  newUrl.hostname = 'visora-api.bptecnologia.com' // Replace with your target domain
+    const url = new URL(request.url)
+    url.hostname = TARGET_DOMAIN
 
-  console.log(`[Request] ${request.method} ${request.url} -> ${newUrl.toString()}`)
+    console.log(`[Request] ${request.method} ${request.url} -> ${url.toString()}`)
 
-  // Create a new request with the original method, headers, and body
-  const newRequest = new Request(newUrl.toString(), {
-    method: request.method,
-    headers: request.headers,
-    body: request.body, // This preserves POST/PUT body
-    redirect: 'follow' // Follow redirects if the new domain issues its own
-  })
+    // Copy all incoming headers but drop 'host' so the runtime sets it
+    // correctly for the target domain — forwarding the original host would
+    // cause the target server to reject the request.
+    const headers = new Headers(request.headers)
+    headers.delete('host')
 
-  // Fetch the new URL with the original request details
-  const response = await fetch(newRequest)
+    // GET and HEAD must NOT carry a body (Fetch spec + Cloudflare runtime).
+    // POST, PUT, PATCH, DELETE etc. all pass the body through unchanged.
+    const methodAllowsBody = request.method !== 'GET' && request.method !== 'HEAD'
 
-  console.log(`[Response] ${response.status} ${response.statusText} for ${newUrl.toString()}`)
+    const proxyRequest = new Request(url.toString(), {
+      method: request.method,
+      headers,
+      body: methodAllowsBody ? request.body : null,
+      // 'follow' forwards any redirects the target server may issue.
+      // Note: all headers (including Authorization) are forwarded to the
+      // redirect destination. Switch to 'manual' if that is undesirable.
+      redirect: 'follow',
+    })
 
-  return response
+    const response = await fetch(proxyRequest)
+
+    console.log(`[Response] ${response.status} ${response.statusText} from ${url.toString()}`)
+
+    return response
+  },
 }
