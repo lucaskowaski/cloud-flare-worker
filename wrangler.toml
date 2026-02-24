@@ -1,3 +1,8 @@
 name = "cloud-flare-worker"
 main = "index.js"
 compatibility_date = "2026-02-24"
+
+[observability]
+[observability.logs]
+enabled = false
+invocation_logs = true
