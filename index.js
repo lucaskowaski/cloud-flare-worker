@@ -7,6 +7,8 @@ async function handleRequest(request) {
   // Change the hostname to the new domain
   newUrl.hostname = 'visora-api.bptecnologia.com' // Replace with your target domain
 
+  console.log(`[Request] ${request.method} ${request.url} -> ${newUrl.toString()}`)
+
   // Create a new request with the original method, headers, and body
   const newRequest = new Request(newUrl.toString(), {
     method: request.method,
@@ -16,5 +18,9 @@ async function handleRequest(request) {
   })
 
   // Fetch the new URL with the original request details
-  return fetch(newRequest)
+  const response = await fetch(newRequest)
+
+  console.log(`[Response] ${response.status} ${response.statusText} for ${newUrl.toString()}`)
+
+  return response
 }
